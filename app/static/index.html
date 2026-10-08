@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF to Markdown for AI Agents</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Marked.js for client-side markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- JSZip for fast client-side zip creation -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom styling for preview markdown content */
+    .prose-dark {
+      color: #cbd5e1;
+    }
+    .prose-dark h1, .prose-dark h2, .prose-dark h3 {
+      color: #f8fafc;
+      font-weight: 700;
+      margin-top: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .prose-dark h1 { font-size: 1.75rem; }
+    .prose-dark h2 { font-size: 1.4rem; }
+    .prose-dark h3 { font-size: 1.15rem; }
+    .prose-dark table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+    .prose-dark th, .prose-dark td {
+      border: 1px solid #334155;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+    }
+    .prose-dark th {
+      background-color: #1e293b;
+      color: #e2e8f0;
+    }
+    .prose-dark code {
+      background-color: #1e293b;
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.875rem;
+      color: #38bdf8;
+    }
+    .prose-dark pre {
+      background-color: #0f172a;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      border: 1px solid #1e293b;
+    }
+    .prose-dark pre code {
+      background-color: transparent;
+      padding: 0;
+    }
+    .prose-dark blockquote {
+      border-left: 4px solid #6366f1;
+      padding-left: 1rem;
+      color: #94a3b8;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body class="min-h-full flex flex-col font-sans antialiased bg-slate-950 text-slate-100">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+            PDF &rarr; Markdown
+            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">for AI Agents</span>
+          </h1>
+          <p class="text-xs text-slate-400">Offline, giữ nguyên bảng biểu, tự động phân trang & đếm token</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <a href="#agent-api" class="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center gap-1.5 border border-slate-700">
+          <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+          </svg>
+          API cho Agent
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Options Box -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-center gap-6">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Tùy chọn cho Agent:</span>
+        <label class="flex items-center space-x-2 text-sm text-slate-300 cursor-pointer">
+          <input type="checkbox" id="opt-frontmatter" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700">
+          <span>Kèm YAML Frontmatter <span class="text-xs text-slate-400">(metadata & token)</span></span>
+        </label>
+        <label class="flex items-center space-x-2 text-sm text-slate-300 cursor-pointer">
+          <input type="checkbox" id="opt-pagemarkers" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700">
+          <span>Đánh dấu phân trang <code class="text-xs text-indigo-300 bg-indigo-950/60 px-1 py-0.5 rounded">&lt;!-- Page X --&gt;</code></span>
+        </label>
+        <label class="flex items-center space-x-2 text-sm text-slate-300 cursor-pointer" title="Chỉ bật khi cần nhận diện văn bản từ hình ảnh hoặc tài liệu scan (tốc độ chậm hơn nhiều)">
+          <input type="checkbox" id="opt-ocr" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-800 border-slate-700">
+          <span>OCR quét ảnh <span class="text-xs text-amber-400 font-mono">(chỉ dùng cho tài liệu scan)</span></span>
+        </label>
+      </div>
+      <div class="text-xs text-slate-500">
+        Engine: <span class="text-emerald-400 font-medium">PyMuPDF4LLM (Offline)</span>
+      </div>
+    </div>
+
+    <!-- Drop Zone -->
+    <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-900/50 hover:bg-slate-900 transition-all rounded-2xl p-8 text-center cursor-pointer relative group">
+      <input type="file" id="file-input" multiple accept=".pdf" class="hidden">
+      <div class="space-y-3 pointer-events-none">
+        <div class="w-14 h-14 mx-auto rounded-full bg-indigo-600/10 group-hover:bg-indigo-600/20 text-indigo-400 flex items-center justify-center transition-colors">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+          </svg>
+        </div>
+        <div>
+          <p class="text-base font-semibold text-slate-200">Kéo & thả các file PDF vào đây hoặc <span class="text-indigo-400 underline">chọn tệp từ máy</span></p>
+          <p class="text-xs text-slate-400 mt-1">Hỗ trợ nhiều file cùng lúc (Batch Processing). Xử lý an toàn trên máy cục bộ.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Queue & Actions Header -->
+    <div id="queue-section" class="hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-2">
+          <h2 class="text-base font-semibold text-slate-200">Danh sách tệp</h2>
+          <span id="file-count-badge" class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-slate-800 text-slate-300">0 files</span>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button id="btn-convert-all" class="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            Chuyển đổi tất cả
+          </button>
+          <button id="btn-download-zip" class="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/25 transition-all flex items-center gap-2" title="Tải toàn bộ các file đã chuyển đổi dưới dạng ZIP">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            Tải về ZIP (.zip)
+          </button>
+          <button id="btn-clear-all" class="px-3 py-2 rounded-xl text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors">
+            Xóa danh sách
+          </button>
+        </div>
+      </div>
+
+      <!-- File Queue Table -->
+      <div class="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 shadow">
+        <table class="min-w-full divide-y divide-slate-800 text-left text-sm">
+          <thead class="bg-slate-900/90 text-xs font-medium uppercase text-slate-400">
+            <tr>
+              <th scope="col" class="py-3 px-4">Tên tệp</th>
+              <th scope="col" class="py-3 px-4">Kích thước</th>
+              <th scope="col" class="py-3 px-4">Số trang</th>
+              <th scope="col" class="py-3 px-4">Ước tính Token</th>
+              <th scope="col" class="py-3 px-4">Trạng thái</th>
+              <th scope="col" class="py-3 px-4 text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="file-list-tbody" class="divide-y divide-slate-800 font-normal text-slate-300">
+            <!-- Dynamic rows will be inserted here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Agent Integration Guide Section -->
+    <div id="agent-api" class="mt-12 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+          </div>
+          <h3 class="text-base font-semibold text-slate-200">Hướng dẫn AI Agent tích hợp API</h3>
+        </div>
+        <span class="text-xs text-indigo-400 font-mono">POST /api/convert</span>
+      </div>
+      <p class="text-sm text-slate-400">
+        Các AI Agent, autonomous script hoặc n8n/CrewAI có thể gọi trực tiếp endpoint HTTP để convert file PDF sang Markdown trong 1 bước:
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Curl Example -->
+        <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 font-mono text-xs text-slate-300 space-y-2">
+          <div class="flex justify-between items-center text-slate-400 text-[11px]">
+            <span>cURL (Terminal / Bash tool)</span>
+            <button onclick="copySnippet('curl-snippet')" class="hover:text-white transition">Copy</button>
+          </div>
+          <pre id="curl-snippet" class="overflow-x-auto text-emerald-400">curl -X POST "http://localhost:8000/api/convert" \
+  -F "file=@document.pdf" \
+  -F "include_frontmatter=true" \
+  -F "include_page_markers=true"</pre>
+        </div>
+
+        <!-- Python Example -->
+        <div class="bg-slate-950 rounded-xl p-4 border border-slate-800/80 font-mono text-xs text-slate-300 space-y-2">
+          <div class="flex justify-between items-center text-slate-400 text-[11px]">
+            <span>Python (Agent script)</span>
+            <button onclick="copySnippet('python-snippet')" class="hover:text-white transition">Copy</button>
+          </div>
+          <pre id="python-snippet" class="overflow-x-auto text-sky-400">import requests
+
+res = requests.post(
+    "http://localhost:8000/api/convert",
+    files={"file": open("doc.pdf", "rb")},
+)
+markdown = res.json()["markdown"]
+print(f"Tokens: {res.json()['metadata']['estimated_tokens']}")</pre>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Preview -->
+  <div id="preview-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <h3 id="modal-filename" class="text-base font-semibold text-slate-100 truncate max-w-md">Preview</h3>
+          <span id="modal-token-badge" class="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">0 tokens</span>
+        </div>
+        <div class="flex items-center space-x-3">
+          <!-- Toggle Raw vs Rendered -->
+          <div class="bg-slate-800 p-1 rounded-lg flex items-center space-x-1 text-xs">
+            <button id="btn-tab-preview" class="px-3 py-1 rounded-md bg-indigo-600 text-white font-medium transition">Rendered</button>
+            <button id="btn-tab-raw" class="px-3 py-1 rounded-md text-slate-400 hover:text-white font-medium transition">Raw Markdown</button>
+          </div>
+          <button id="btn-modal-copy" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            </svg>
+            Copy Markdown
+          </button>
+          <button id="btn-modal-download" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            Download .md
+          </button>
+          <button id="btn-modal-close" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="flex-1 overflow-y-auto p-6 bg-slate-950/60">
+        <div id="modal-content-rendered" class="prose-dark max-w-none"></div>
+        <textarea id="modal-content-raw" readonly class="hidden w-full h-full font-mono text-xs bg-slate-950 text-slate-200 border-0 focus:ring-0 resize-none p-4"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <footer class="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
+    PDF to Markdown for AI Agents &bull; Fast, local, private &bull; Powered by PyMuPDF4LLM
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
